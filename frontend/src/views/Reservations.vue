@@ -11,9 +11,9 @@
       <p></p>
       <label for="partyOf">Party Size : </label>
       <!-- dropdown -->
-      <select v-model="selectedParties" :disabled="isPartiesDisabled" @change="onChangeSelect($event)">
-        <option :value=null disabled>Please select number of party.</option>
-        <option v-for="party in parties" v-bind:key="party" :value="party">{{ party }}</option>
+      <select v-model="selectedPartyof" :disabled="isPartyofDisabled" @change="onPartySelected($event)">
+        <option :value=null disabled>Please select number of guests.</option>
+        <option v-for="party in partyof" v-bind:key="party" :value="party">{{ party }}</option>
       </select>
       <p></p>
       <label for="date">Date : </label>
@@ -40,6 +40,7 @@
 
 <script>
 import axios from 'axios'
+
 export default {
   name: 'Reservations',
   data () {
@@ -47,16 +48,16 @@ export default {
       msg: [],
       name: null,
       email: null,
-      parties: null,
-      selectedParties: null,
+      partyof: null,
+      selectedPartyof: null,
       dates: null,
       inventories: null,
       inventoryID: null,
       selectedDate: null,
       slots: [],
       selectedSlot: null,
-      isPartiesDisabled: false,
-      isDateDisabled: false,
+      isPartyofDisabled: false,
+      isDateDisabled: true,
       isSlotsDisabled: true,
       isReserveDisabled: true
     }
@@ -68,9 +69,7 @@ export default {
     }
   },
   created: async function () {
-    this.parties = await this.getParties()
-    this.inventories = await this.getDates()
-    this.msg['email'] = ''
+    this.partyof = await this.getPartyof()
   },
   methods: {
     validateEmail(value){
@@ -80,102 +79,74 @@ export default {
         this.msg['email'] = 'Invalid Email Address';
       }
     },
-
-    doReserve() {
-      console.log('reserve |' + this.name)
+    doReserve: async function() {
       const data = {
         name: this.name,
         email: this.email,
-        partyOf: this.selectedParties,
+        partyOf: this.selectedPartyof,
         inventoryID: this.inventoryID,
         slot: this.selectedSlot
       }
       if (confirm("Are you sure to reserve?")) {
-        axios.post('http://localhost:9090/api/reservations', data)
+        this.doClear()
+        await axios.post('http://localhost:9090/api/reservations', data)
           .then(function (response) {
-            alert("Thank you!\n" + JSON.stringify(response));
-            console.log(response)
+            alert("Thank you!");
           })
           .catch(function (error) {
             console.log(error);
           })
-        this.doClear()
       }
     },
     doClear() {
       console.log('clear')
+      this.msg = []
       this.name = null
       this.email = null
-      this.selectedParties = null
+      this.selectedPartyof = null
+      this.dates = null
+      this.inventories = null
       this.inventoryID = null
+      this.selectedDate = null
+      this.slots = []
       this.selectedSlot = null
+      this.isPartyofDisabled = false
+      this.isDateDisabled = true
       this.isSlotsDisabled = true
       this.isReserveDisabled = true
-      this.msg['email'] = ''
     },
     enableReserve() {
-      console.log("name" +"|"+ this.name)
-      console.log("email" +"|"+ this.email)
-      if ((this.name == null || this.name.length < 3) ||
-          (this.email == null || this.email.length < 8) ||
-          this.selectedParties < 1 ||
-          (this.inventoryID == null) ||
-          (this.selectedSlot == null || this.selectedSlot.length < 1)) {
+      if (this.name == null || this.email == null || this.selectedPartyof < 1 ||
+          this.inventoryID == null || this.selectedSlot == null) {
         this.isReserveDisabled = true
-        console.log("reseve disabled!!!!")
       } else {
         this.isReserveDisabled = false
       }
     },
+    onPartySelected: async function(e) {
+      this.inventories = await this.getDates()
+      this.isDateDisabled = false
+    },
     onChangeSelect: async function(e) {
-      console.log(this.selectedParties + " | " + this.inventoryID)
-      if (this.selectedParties > 0) {
-        console.log("Number of party is selected.")
-      }
-      if (this.inventoryID != null) {
-        console.log("Date is selected.")
-      }
-      if (this.selectedParties > 0 && this.inventoryID != null) {
+      if (this.selectedPartyof > 0 && this.inventoryID != null) {
         this.isSlotsDisabled = false
-        console.log("Slots Enabled.")
-        this.slots = await this.getSlots(this.inventoryID, this.selectedParties)
-        console.log("----onChangeSelect----")
-        console.log(this.slots)
+        this.slots = await this.getSlots(this.inventoryID, this.selectedPartyof)
       } else {
         this.isSlotsDisabled = true
-        console.log("Slots Disabled.")
       }
       this.enableReserve()
     },
-    getParties: async function() {
-      const res = await axios.get('http://localhost:9090/api/inventories/parties')
-      return res.data.parties
+    getPartyof: async function() {
+      const res = await axios.get('http://localhost:9090/api/inventories/partyof')
+      return res.data.partyof
     },
     getDates: async function() {
       const res = await axios.get('http://localhost:9090/api/inventories')
-      console.log("== getDates() ====")
-      console.log(res)
       return res.data.inventories
     },
-    getSlots: async function(inventoryID, parties) {
-      const res = await axios.get('http://localhost:9090/api/inventories/slots/' + inventoryID + '/parties/' + parties)
-      console.log("=== getSlots ===")
-      console.log(res.data.inventory)
+    getSlots: async function(inventoryID, partyof) {
+      const res = await axios.get('http://localhost:9090/api/inventories/slots/' + inventoryID + '/partyof/' + partyof)
       return res.data.inventory.slots
-    }
-    //setInitialValues: async function() {
-    //  const res = await axios.get('http://localhost:9090/api/inventories')
-    //  return res
-    //}
-  },
-  async mounted() {
-    try {
-      await axios.get('http://localhost:9090/test')
-        .then(function (response) {
-          console.log("axios, await")
-        })
-    } catch (error) {
-      console.error(error)
     }
   }
 }

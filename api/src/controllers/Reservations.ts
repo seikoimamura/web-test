@@ -14,8 +14,6 @@ export class Reservations {
   }
   @Post()
   private async add(req: Request, res: Response) {
-    //return res.status(200).json({msg: 'Reserved!'})
-
     const reservation = await ReservationsModel.create(
       {
         name: req.body.name,
@@ -30,7 +28,5 @@ export class Reservations {
       return res.status(400).json({msg: 'error!'})
     }
     return res.send(reservation)
-
-    //return res.send(req.body)
   }
 }

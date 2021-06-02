@@ -3,67 +3,28 @@ import { Request, Response } from 'express'
 import { Sequelize, Op } from 'sequelize'
 import { Inventories as InventoriesModel} from '../models/Inventories'
 import { Reservations as ReservationsModel} from '../models/Reservations'
-/*
-SELECT "Inventories"."id", "Inventories".*, COUNT('Reservations.id') AS "numReservations"
-FROM "Inventories" AS "Inventories"
-LEFT OUTER JOIN "Reservations" AS "reservedInventries" ON "Inventories"."id" = "reservedInventries"."inventoryID" AND ("reservedInventries"."deleted_at" IS NULL)
-WHERE ("Inventories"."deleted_at" IS NULL AND "Inventories"."reservationDate" >= now()::Date)
-GROUP BY "InventoriesModel"."id";
-
-
-SELECT "Inventories"."id", "Inventories".*, COUNT('Reservations.id') AS "numReservations"
-FROM "Inventories" AS "Inventories"
-LEFT OUTER JOIN "Reservations" AS "reservedInventries" ON "Inventories"."id" = "reservedInventries"."inventoryID"
-AND ("reservedInventries"."deleted_at" IS NULL)
-WHERE ("Inventories"."deleted_at" IS NULL AND "Inventories"."reservationDate" >= now()::Date)
-GROUP BY "Inventories"."id";
-
-
-SELECT "Inventories"."id", "Inventories".*, COUNT('Reservations.id') AS "numReservations"
-FROM "Inventories" AS "Inventories"
-LEFT OUTER JOIN "Reservations" AS "Reservations" ON "Inventories"."id" = "Reservations"."inventoryID"
-AND ("Reservations"."deleted_at" IS NULL)
-WHERE ("Inventories"."deleted_at" IS NULL AND "Inventories"."reservationDate" >= now()::Date)
-GROUP BY "Inventories"."id";
-
-*/
 
 @Controller('api/inventories')
 export class Inventories {
   @Get()
   private async getInventories(req: Request, res: Response) {
     const inventories = await InventoriesModel.findAll({
-      /**
-      attributes: ['Inventories.*', [Sequelize.fn('COUNT', Sequelize.col('Reservations.inventoryID')), 'numReservations']],
-      include: [
-        {
-          model: ReservationsModel,
-          attributes: []
-        }
-      ],
-      group: ['"Reservations.inventoryID"', '"Inventories.id"'],
-      **/
-      /**
-      attributes: ['id', 'slots', 'openTime', 'closeTime', 'reservationDate',
-                   [Sequelize.literal('(SELECT COUNT(*) FROM "Reservations" WHERE "inventoryID" = "Inventories"."id")'),
-                    'numReservations']
-                  ],
-      **/
       where: {reservationDate: {
         [Op.gte]: Sequelize.literal('now()::Date')
-      }}
+      }},
+      order: Sequelize.col('reservationDate')
     }).catch((error: Error) => {
       return res.status(400).json({msg: 'error!'})
     })
     return res.json({inventories: inventories})
   }
-  @Get('parties')
-  private async parties(req: Request, res: Response) {
-    const parties = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
-    return res.json({parties: parties})
+  @Get('partyof')
+  private async getPartyof(req: Request, res: Response) {
+    const partyof = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+    return res.json({partyof: partyof})
   }
-  @Get('slots/:id/parties/:num')
-  private async get(req: Request, res: Response) {
+  @Get('slots/:id/partyof/:num')
+  private async getSlots(req: Request, res: Response) {
     const inventory = await InventoriesModel.findOne({
       where: {id: req.params['id']}
     })
@@ -83,30 +44,21 @@ export class Inventories {
       if (reserves[slot.slot]) {
         num = reserves[slot.slot]
       }
-
       slots.push({
         slot: slot.slot,
         maxReservations: slot.maxReservations,
         numReservations: num
       })
     })
-
     inventory.slots = slots
-    return res.json(
-      {
-        inventory: inventory,
-        parties: req.params['num']
-      }
-    )
+    return res.json({inventory: inventory})
   }
-  //@Get('dates/:days')
-  @Get('dates')
-  private async dates(req: Request, res: Response) {
+  @Get('dates/:days')
+  private async getDates(req: Request, res: Response) {
     const currentDay = new Date()
     const dates = []
     dates.push(currentDay.toDateString())
-    //const days = parseInt(req.params['days'])
-    const days = 7
+    const days = parseInt(req.params['days'])
     for (let i = 1; i < days; i++) {
       currentDay.setDate(currentDay.getDate() + 1)
       dates.push(currentDay.toDateString())
@@ -115,19 +67,9 @@ export class Inventories {
   }
   @Get('date/:date')
   private async getInventory(req: Request, res: Response) {
-    /**
-    const inventory = await InventoriesModel.findAll({
-      raw: true,
-      where: {reservationDate: req.params['date']},
-      include: [{
-        model: ReservationsModel
-      }]
-    })
-    **/
     const inventory = await InventoriesModel.findOne({
       where: {reservationDate: req.params['date']}
     })
-
     if (inventory !== null) {
       const reservations = await ReservationsModel.findAll({
         attributes: ['reservationTime', [Sequelize.fn('COUNT', Sequelize.col('reservationTime')), 'numReservations']],
@@ -135,51 +77,33 @@ export class Inventories {
         raw: true,
         where: {inventoryID: inventory.id}
       })
-
-      inventory.slots.forEach((slot, index) => {
-      });
-
       return res.json({inventory: inventory, reservations: reservations})
     }
-
     return res.json({inventory: inventory})
   }
   @Post()
   private async addInventory(req: Request, res: Response) {
-    const inventory = await InventoriesModel.create(
-      {
-        reservationDate: req.body.reservationDate,
-        openTime: req.body.openTime,
-        closeTime: req.body.closeTime,
-        slots: req.body.slots
-      }
-    )
+    const inventory = await InventoriesModel.create({
+      reservationDate: req.body.reservationDate,
+      openTime: req.body.openTime,
+      closeTime: req.body.closeTime,
+      slots: req.body.slots
+    })
     if (inventory === null) {
       return res.status(400).json({msg: 'error!'})
     }
     return res.send(inventory)
-    //return res.send(req.body.closeTime)
-    //return res.status(200).json({msg: 'Reserved!'})
   }
   @Put()
   private async updateInventory(req: Request, res: Response) {
-    const inventory = await InventoriesModel.update(
-      {
-        reservationDate: req.body.reservationDate,
-        openTime: req.body.openTime,
-        closeTime: req.body.closeTime,
-        slots: req.body.slots
-      },
-      {
-        where: {
-          id: req.body.id
-        }
-      })
-
-    //if (inventory === null) {
-    //  return res.status(400).json({msg: 'error!'})
-    //}
+    const inventory = await InventoriesModel.update({
+      reservationDate: req.body.reservationDate,
+      openTime: req.body.openTime,
+      closeTime: req.body.closeTime,
+      slots: req.body.slots
+    }, {
+      where: {id: req.body.id}
+    })
     return res.send(inventory)
-    //return res.status(200).json({msg: 'test!'})
   }
 }
