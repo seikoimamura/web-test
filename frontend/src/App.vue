@@ -29,4 +29,28 @@
     }
   }
 }
+
+table {
+  border: 2px solid gray;
+  border-radius: 3px;
+  background-color: #fff;
+}
+
+th {
+  background-color: gray;
+  color: rgba(255, 255, 255, 0.66);
+  cursor: pointer;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+td {
+  background-color: #f9f9f9;
+}
+
+input:invalid:focus {
+  background-image: linear-gradient(pink, red);
+}
 </style>
